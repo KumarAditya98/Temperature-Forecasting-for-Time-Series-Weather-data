@@ -65,12 +65,10 @@ df_1 = df[['rain(mm)']]
 df_1 = df_1.resample('D').sum()
 
 df_2 = df[['T(degC)']]
-df_2 = df_2.resample('D').mean().fillna('backfill')
-
-a = pd.Series(j,name='Day_Counts',index = df_2.index)
+df_2 = df_2.resample('D').mean().fillna(method='bfill')
 
 fig, ax = plt.subplots(figsize=(30,16))
-df_2.plot()
+df_2['T(degC)'].plot()
 plt.tight_layout()
 plt.grid()
 plt.show()
