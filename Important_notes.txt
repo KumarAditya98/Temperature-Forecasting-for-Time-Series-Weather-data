@@ -1,0 +1,8 @@
+2.	In your opinion, what are the limitations of working with the data in 10-minute intervals directly? – 2 missing days + 6 days with incomplete 10-minute interval readings.
+3.	Final term project dataset: its 10-minute data. Do you think aggregation is required? Aggregation to days leads to 4500 rows. If this is acceptable then how do you suggest I take an aggregation – an average of the entire day?
+4.	While aggregating - Max temperatures, Min temperatures, and Average temperature of a day as separate time series to predict the next day’s max, min, and average?
+5.	Can I use a different variable from the dataset for the univariate time series analysis and a different variable for the linear regression model?
+
+-	Have to take average time series for unbiased model – can do min and max as well.
+-	Feature reduction using random forest or PCA or condition number
+-	Drift method for data imputation. 
