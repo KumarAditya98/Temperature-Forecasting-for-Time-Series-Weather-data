@@ -6,3 +6,4 @@
 -	Have to take average time series for unbiased model – can do min and max as well.
 -	Feature reduction using random forest or PCA or condition number
 -	Drift method for data imputation. 
+- Linear regression - OLS from statsmodel can be applied for time series as well with shuffle false. The only issue is that we cannot make h step prediction. Only single-step prediction can be made. 
