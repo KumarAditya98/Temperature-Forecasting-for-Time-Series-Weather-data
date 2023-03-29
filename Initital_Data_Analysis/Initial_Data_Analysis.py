@@ -93,15 +93,39 @@ Temp = pd.Series(Vals,name='T(degC)',index = df_2.index)
 Temp = pd.DataFrame(Temp)
 df_2 = df_2.fillna(Temp)
 
+# Checking for NA's againg to see if this worked
+print(df_2.isna().sum())
 
-fig, ax = plt.subplots(figsize=(30,16))
-df_2['T(degC)'].plot()
-plt.tight_layout()
+# Checking to see the whether the two known missing days have been imputed '2016-10-26' & '2016-10-27'
+print(Temp.loc['2016-10-26':'2016-10-27'])
+print(df_2.loc['2016-10-26':'2016-10-27'])
+
+# Plotting the newly aggregated data along with the drift line used for imputation
+fig, ax = plt.subplots(figsize=(16,8))
+df_2['T(degC)'].plot(label="Daily time-series Data")
+Temp['T(degC)'].plot(label="Interpolation Line")
 plt.grid()
+plt.legend()
+plt.title("Plotting the daily aggregated time-series along with the interpolation line used to impute missing values")
+plt.xlabel("Time")
+plt.ylabel("Temperature (degC)")
 plt.show()
 
-Temp_1 = pd.Series(df_2['Tpot(K)'].values,index = df_1.index,
-                 name = 'temp')
+from toolbox import cal_autocorr
+lags = 90
+Temp_1_arr = np.array(Temp_1)
+cal_autocorr(Temp_1_arr,lags,'Temperature (degC)')
+plt.show()
+
+from toolbox import ADF_Cal
+ADF_Cal(Temp_1_arr)
+
+from toolbox import kpss_test
+kpss_test(Temp_1_arr)
+
+Temp_1 = pd.Series(df_2['T(degC)'].values,index = df_2.index,
+                 name = 'Temp (degC)')
+from toolbox import Cal_rolling_mean_var
 Cal_rolling_mean_var(Temp_1)
 from statsmodels.tsa.seasonal import STL
 STL = STL(Temp_1,period=365)
@@ -112,7 +136,9 @@ R = res.resid
 fig = res.plot()
 plt.show()
 SOT = max(0,(1-((np.var(R))/(np.var(R+T)))))
-
+SOT
+SOS = max(0,(1-((np.var(T))/(np.var(R+S)))))
+SOS
 from statsmodels.tsa.seasonal import STL
 Temp = pd.Series(df['Tlog(degC)'].values,index = df_new.index,
                  name = 'temp')
