@@ -31,6 +31,12 @@ print(df.shape)
 
 # Treating DateTime column as index
 df.index = pd.to_datetime(df.DateTime,dayfirst=True)
+print(df.head())
+
+# We don't require the DateTime column anymore.
+df.drop(columns=['DateTime'],axis=1,inplace=True)
+print(df.shape)
+print(df.head())
 
 # # Subsetting only the time stamps and target variable for plotting.
 # df_new = df.iloc[:,0:3:2]
@@ -49,7 +55,7 @@ df.index = pd.to_datetime(df.DateTime,dayfirst=True)
 # Result of some external analysis - 2 missing dates + 6 days have incomplete 10-minute interval observations.
 
 # To count the number of rows for each day in the dataset. Expectation is to see 144 count for each days as it is a 10 - minute interval. There are 1440 minutes in a day.
-j = []
+j = pd.DataFrame([],columns = ['Count','Year','Month','Day'])
 count = 0
 for i in range(len(df)):
     if i+1 > len(df)-1:
@@ -58,14 +64,35 @@ for i in range(len(df)):
         count = count + 1
     else:
         count = count + 1
-        j.append(count)
+        temp = pd.DataFrame({'Count':count,'Year':df.iloc[i].name.year,'Month':df.iloc[i].name.month,'Day':df.iloc[i].name.day},index = [0])
+        j = pd.concat([j,temp],ignore_index=True,)
         count = 0
 
-df_1 = df[['rain(mm)']]
-df_1 = df_1.resample('D').sum()
+# Now checking how many days don't have exactly 144 observations as is the expectation
+print(j[j['Count']!=144])
+# From this analysis we see a few drawbacks in the 10-minute interval data. 9 days don't have all the 10 minute intervals covered while measuring the data. We cannot use the 10 minute interval as time series.
+# To convert into a usable time-series, i will instead aggregate my data to day level. I will do this by taking the average of all temperatures within the day so as to avoid bias.
+
+# df_1 = df[['rain(mm)']]
+# df_1 = df_1.resample('D').sum()
 
 df_2 = df[['T(degC)']]
-df_2 = df_2.resample('D').mean().fillna(method='bfill')
+df_2 = df_2.resample('D').mean()
+
+# Looking at the number of days that are avilable between this time period to see if this operation has been performed successfully. Using an external tool, i've caluclated the number of days between these dates (inclusive) to be 4564.
+print(len(df_2))
+# The length matches.
+
+# Now evaluating whether any day is missing from the dataset, expectation is to not see any NA's after aggregation
+print(df_2[df_2.isna().values])
+# From this analysis, we see that 2 days don't have any observations in the original data. Since this is a time-series, I will have to use an appropriate method to impute this data.
+# The method I will be using will be drift method to impute missing values.
+
+Vals = np.linspace(df_2.iloc[0,0],df_2.iloc[-1,0],len(df_2))
+Temp = pd.Series(Vals,name='T(degC)',index = df_2.index)
+Temp = pd.DataFrame(Temp)
+df_2 = df_2.fillna(Temp)
+
 
 fig, ax = plt.subplots(figsize=(30,16))
 df_2['T(degC)'].plot()
