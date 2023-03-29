@@ -111,6 +111,8 @@ plt.xlabel("Time")
 plt.ylabel("Temperature (degC)")
 plt.show()
 
+# df_2 is my dependent variable. I need to perform a similar aggregation for my independent variables.
+
 from toolbox import cal_autocorr
 lags = 90
 Temp_1_arr = np.array(Temp_1)
