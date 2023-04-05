@@ -17,6 +17,9 @@
 * wd (deg) : Wind direction in degrees
 * rain (mm) : Rain in milimetrers
 * raining (s) : Duration of rain in seconds
+* SWDR (W/m*2) : Solar Radiation
+* PAR (mol/m*2/s) :
+* max PAR (mol/m*2/s) :
 * Tlog (degC) : Log of Temperature in Degree Celsius
 * CO2 (ppm) : Carbon Dioxide parts per million
 
