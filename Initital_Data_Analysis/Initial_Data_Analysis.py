@@ -9,7 +9,7 @@ print(df.columns)
 
 # Target variable is Temperature in degree celsius
 print(df.head().to_string())
-print(df.tail())
+print(df.tail().to_string())
 # One extra observation for a new day. Will remove this observation from the dataset
 df.drop(df.tail(1).index,inplace=True)
 
@@ -51,7 +51,7 @@ print(df.head())
 # plt.tight_layout()
 # plt.grid()
 # plt.show()
-
+# ----------------------------x--------------------------------------
 # Result of some external analysis - 2 missing dates + 6 days have incomplete 10-minute interval observations.
 
 # To count the number of rows for each day in the dataset. Expectation is to see 144 count for each days as it is a 10 - minute interval. There are 1440 minutes in a day.
@@ -76,33 +76,34 @@ print(j[j['Count']!=144])
 # df_1 = df[['rain(mm)']]
 # df_1 = df_1.resample('D').sum()
 
-df_2 = df[['T(degC)']]
-df_2 = df_2.resample('D').mean()
+df_target = df[['T(degC)']]
+df_target = df_target.resample('D').mean()
 
 # Looking at the number of days that are avilable between this time period to see if this operation has been performed successfully. Using an external tool, i've caluclated the number of days between these dates (inclusive) to be 4564.
-print(len(df_2))
+print(len(df_target))
 # The length matches.
 
 # Now evaluating whether any day is missing from the dataset, expectation is to not see any NA's after aggregation
-print(df_2[df_2.isna().values])
+print(df_target[df_target.isna().values])
 # From this analysis, we see that 2 days don't have any observations in the original data. Since this is a time-series, I will have to use an appropriate method to impute this data.
-# The method I will be using will be drift method to impute missing values.
+# The method I will be using will be drift method to impute missing values. I will perform this imputation after the train-test split only using the train data since with a train test split of 0.2/0.25, only the training data will have missing values.
 
-Vals = np.linspace(df_2.iloc[0,0],df_2.iloc[-1,0],len(df_2))
-Temp = pd.Series(Vals,name='T(degC)',index = df_2.index)
+# Place-holder
+Vals = np.linspace(df_target.iloc[0,0],df_target.iloc[-1,0],len(df_target))
+Temp = pd.Series(Vals,name='T(degC)',index = df_target.index)
 Temp = pd.DataFrame(Temp)
-df_2 = df_2.fillna(Temp)
+df_target = df_target.fillna(Temp)
 
 # Checking for NA's againg to see if this worked
-print(df_2.isna().sum())
+print(df_target.isna().sum())
 
 # Checking to see the whether the two known missing days have been imputed '2016-10-26' & '2016-10-27'
 print(Temp.loc['2016-10-26':'2016-10-27'])
-print(df_2.loc['2016-10-26':'2016-10-27'])
+print(df_target.loc['2016-10-26':'2016-10-27'])
 
 # Plotting the newly aggregated data along with the drift line used for imputation
 fig, ax = plt.subplots(figsize=(16,8))
-df_2['T(degC)'].plot(label="Daily time-series Data")
+df_target['T(degC)'].plot(label="Daily time-series Data")
 Temp['T(degC)'].plot(label="Interpolation Line")
 plt.grid()
 plt.legend()
@@ -111,7 +112,38 @@ plt.xlabel("Time")
 plt.ylabel("Temperature (degC)")
 plt.show()
 
-# df_2 is my dependent variable. I need to perform a similar aggregation for my independent variables.
+# df_target contains only my dependent variable. I need to perform a similar aggregation for my independent variables.
+# Listing down my dependent variables below to see what type of aggregation will be required for each:
+# p (mbar) : The pascal SI derived unit of pressure used to quantify internal pressure. Meteorological reports typically state - I can take an average here.
+# T (degC) : Temperature in Celsius - Target variable, already used.
+# Tpot (K) : Temperature in Kelvin - Redundant variable, will be dropped.
+# Tdew (degC) : Temperature in Celsius relative to humidity. Dew Point is a measure of the absolute amount of water in the air. - Could be highly correlated to temperature and/or have the same meaning as temperature. Will have to research on this variable. After Research - The dew point is the temperature the air needs to be cooled to (at constant pressure) in order to achieve a relative humidity (RH) of 100%. This feature may be highly correlated with relative humidity. Will do a correlation test later. Taking an average of this feature will do.
+# rh (%) : Relative Humidity is a measure of how saturated the air is with water vapor, the %RH determines the amount of water. We can take an average of this feature as well for a day.
+# VPmax (mbar) : Saturation vapor pressure - Average
+# VPact (mbar) : Vapor pressure - Average
+# VPdef (mbar) : Vapor pressure deficit - Average
+# sh (g/kg) : Specific humidity - Average. Might be correlated with relative humidity.
+# H2OC (mmol/mol) : Water vapor concentration - Average. Might be correlated with specific humidity. Expressed in different units.
+# rho (g/m**3) : Airtight - Average
+# wv (m/s) : Wind speed - Average
+# max. wv (m/s) : Maximum wind speed - Average
+# wd (deg) : Wind direction in degrees - Average
+# rain (mm) : Rain in milimetrers - Will have to take a sum of this feature to aggregate for a day.
+# raining (s) : Duration of rain in seconds - Will have to take a sum of this feature to aggregate for a day.
+# SWDR (W/m*2) : The definition of this features wasn't given with the dataset. After research i found this to be the Solar Radiation. We can take the Average of this as well.
+# PAR (mol/m*2/s) : The definition of this features wasn't given with the dataset. After research i found this to be the Photo Active Radiation. This might be correlated with solar radiation. For now, will take an average of this.
+# max PAR (mol/m*2/s) : Maximum Photo Active Radiation. Will take an average of this.
+# Tlog (degC) : Log of Temperature in Degree Celsius - Redundant variable. Will have to drop this.
+# CO2 (ppm) : Carbon Dioxide parts per million - Average of the CO2 content in a day.
+
+print(df.columns)
+df_features = df.drop(columns=['Tpot(K)','Tlog(degC)','T(degC)'],axis=1)
+
+print(df_features.columns)
+
+df_features = df_features.resample('D').agg({'p(mbar)': 'mean', 'Tdew(degC)': 'mean', 'rh(%)': 'mean', 'VPmax(mbar)': 'mean', 'VPact(mbar)': 'mean', 'VPdef(mbar)': 'mean', 'sh(g/kg)': 'mean', 'H2OC(mmol/mol)': 'mean', 'rho(g/m**3)': 'mean', 'wv(m/s)': 'mean', 'max.wv(m/s)': 'mean', 'wd(deg)': 'mean', 'rain(mm)': 'sum', 'raining(s)': 'sum', 'SWDR(W/m�)': 'mean', 'PAR(�mol/m�/s)': 'mean', 'max.PAR(�mol/m�/s)': 'mean', 'CO2(ppm)': 'mean'})
+
+print(df_features[df_features.isna().values])
 
 from toolbox import cal_autocorr
 lags = 90
@@ -153,6 +185,5 @@ fig = res.plot()
 plt.show()
 SOT = max(0,(1-((np.var(R))/(np.var(R+T)))))
 SOT
-
 
 # We see that the observations are at 10 minute intervals. Although this is fine, I would like to convert the dataframe to 1-hour intervals. To do this, I will have to aggregate the rest of the columns accordingly.
