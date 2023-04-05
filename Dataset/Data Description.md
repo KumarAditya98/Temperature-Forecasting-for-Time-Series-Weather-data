@@ -18,8 +18,8 @@
 * rain (mm) : Rain in milimetrers
 * raining (s) : Duration of rain in seconds
 * SWDR (W/m*2) : Solar Radiation
-* PAR (mol/m*2/s) :
-* max PAR (mol/m*2/s) :
+* PAR (mol/m*2/s) : Photo Active Radiation
+* max PAR (mol/m*2/s) : Maximum Photo Active Radiation
 * Tlog (degC) : Log of Temperature in Degree Celsius
 * CO2 (ppm) : Carbon Dioxide parts per million
 
