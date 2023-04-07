@@ -132,7 +132,7 @@ print(y_test.isnull().all())
 # Confirming the presence of NA's in target train set
 print(y_train[y_train.isna().any(axis=1)])
 
-# Data imputation for target variable using drift method
+# Data imputation for target train variable using drift method
 Vals = np.linspace(y_train.iloc[0,0],y_train.iloc[-1,0],len(y_train))
 Temp = pd.Series(Vals,name='T(degC)',index = y_train.index)
 Temp = pd.DataFrame(Temp)
@@ -149,18 +149,25 @@ print(y_train.loc['2016-10-26':'2016-10-27'])
 # Confirming the presence of NA's in feature train set
 print(X_train[X_train.isna().any(axis=1)])
 
-# Data imputation for feature variables using drift method
-Vals1 = np.linspace(X_train.iloc[0,0],X_train.iloc[-1,0],len(X_train))
-Temp1 = pd.DataFrame(Vals1,columns=X_train.columns,index = X_train.index)
+# Data imputation for feature train variables using drift method
+def linspace(column):
+    return np.linspace(column.iloc[0],column.iloc[-1],len(column))
+
+Temp1 = pd.DataFrame(X_train.apply(linspace, axis=0))
 X_train = X_train.fillna(Temp1)
 
 # Checking for NA's again to see if this worked
-print(y_train.isna().sum())
+print(X_train.isna().sum())
 
 # Checking to see the whether the two known missing days have been imputed '2016-10-26' & '2016-10-27'
-print(Temp.loc['2016-10-26':'2016-10-27'])
-print(y_train.loc['2016-10-26':'2016-10-27'])
+print(Temp1.loc['2016-10-26':'2016-10-27'])
+print(X_train.loc['2016-10-26':'2016-10-27'])
 
+# No null values. Will go ahead and save out the train data now
+#-----DON'T RUN------------------------------
+# X_train.to_csv('Dataset/X_train.csv')
+# y_train.to_csv('Dataset/y_train.csv')
+#-----DON'T RUN------------------------------
 
 # Plotting the newly aggregated data along with the drift line used for imputation
 fig, ax = plt.subplots(figsize=(16,8))
