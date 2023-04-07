@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+from sklearn.model_selection import train_test_split
 
 df = pd.read_csv('Dataset/WeatherJena.csv')
 
@@ -38,19 +39,6 @@ df.drop(columns=['DateTime'],axis=1,inplace=True)
 print(df.shape)
 print(df.head())
 
-# # Subsetting only the time stamps and target variable for plotting.
-# df_new = df.iloc[:,0:3:2]
-# print(df_new.head())
-#
-# type(df_new.DateTime)
-# df_new.index = pd.to_datetime(df_new.DateTime)
-# df_new = df_new.drop('DateTime',axis = 1)
-#
-# fig, ax = plt.subplots(figsize=(30,16))
-# df['Tpot(K)'].plot()
-# plt.tight_layout()
-# plt.grid()
-# plt.show()
 # ----------------------------x--------------------------------------
 # Result of some external analysis - 2 missing dates + 6 days have incomplete 10-minute interval observations.
 
@@ -73,9 +61,6 @@ print(j[j['Count']!=144])
 # From this analysis we see a few drawbacks in the 10-minute interval data. 9 days don't have all the 10 minute intervals covered while measuring the data. We cannot use the 10 minute interval as time series.
 # To convert into a usable time-series, i will instead aggregate my data to day level. I will do this by taking the average of all temperatures within the day so as to avoid bias.
 
-# df_1 = df[['rain(mm)']]
-# df_1 = df_1.resample('D').sum()
-
 df_target = df[['T(degC)']]
 df_target = df_target.resample('D').mean()
 
@@ -94,7 +79,7 @@ Temp = pd.Series(Vals,name='T(degC)',index = df_target.index)
 Temp = pd.DataFrame(Temp)
 df_target = df_target.fillna(Temp)
 
-# Checking for NA's againg to see if this worked
+# Checking for NA's again to see if this worked
 print(df_target.isna().sum())
 
 # Checking to see the whether the two known missing days have been imputed '2016-10-26' & '2016-10-27'
@@ -143,7 +128,25 @@ print(df_features.columns)
 
 df_features = df_features.resample('D').agg({'p(mbar)': 'mean', 'Tdew(degC)': 'mean', 'rh(%)': 'mean', 'VPmax(mbar)': 'mean', 'VPact(mbar)': 'mean', 'VPdef(mbar)': 'mean', 'sh(g/kg)': 'mean', 'H2OC(mmol/mol)': 'mean', 'rho(g/m**3)': 'mean', 'wv(m/s)': 'mean', 'max.wv(m/s)': 'mean', 'wd(deg)': 'mean', 'rain(mm)': 'sum', 'raining(s)': 'sum', 'SWDR(W/m�)': 'mean', 'PAR(�mol/m�/s)': 'mean', 'max.PAR(�mol/m�/s)': 'mean', 'CO2(ppm)': 'mean'})
 
-print(df_features[df_features.isna().values])
+nan = df_features.isnull()
+print(df_features[nan.any(axis=1)])
+
+# This feature set also has only those 2 dates worth of missing data. Will apply the same imputation to these time-series data.
+
+# Prior to train-test split, I'll go ahead and save out these two dataframes so that they can be used for broaded analyis in other files.
+#---- DON'T RUN -----------------------------------------
+# df_target.to_csv('Dataset/target_series.csv',index=False)
+# df_features.to_csv('Dataset/feature_series.csv',index=False)
+#-------------------------------------------------------------
+
+# Performing the train-test split so that data imputation can be performed prior to proceeding.
+X_train, X_test, y_train, y_test = train_test_split(df_features, df_target, shuffle=False, test_size=0.2, random_state=6313)
+
+# Making sure there aren't any null values in the test set
+print(X_test.isnull().all())
+print(y_test.isnull().all())
+
+
 
 from toolbox import cal_autocorr
 lags = 90
@@ -186,4 +189,18 @@ plt.show()
 SOT = max(0,(1-((np.var(R))/(np.var(R+T)))))
 SOT
 
-# We see that the observations are at 10 minute intervals. Although this is fine, I would like to convert the dataframe to 1-hour intervals. To do this, I will have to aggregate the rest of the columns accordingly.
+
+
+# # Subsetting only the time stamps and target variable for plotting.
+# df_new = df.iloc[:,0:3:2]
+# print(df_new.head())
+#
+# type(df_new.DateTime)
+# df_new.index = pd.to_datetime(df_new.DateTime)
+# df_new = df_new.drop('DateTime',axis = 1)
+#
+# fig, ax = plt.subplots(figsize=(30,16))
+# df['Tpot(K)'].plot()
+# plt.tight_layout()
+# plt.grid()
+# plt.show()
