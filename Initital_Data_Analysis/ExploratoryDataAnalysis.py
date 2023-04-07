@@ -4,11 +4,13 @@ import matplotlib.pyplot as plt
 import os
 os.getcwd()
 
-X_train = pd.read_csv('Dataset/X_train.csv')
-y_train = pd.read_csv('Dataset/y_train.csv')
-X_test = pd.read_csv('Dataset/X_test.csv')
-X_test = pd.read_csv('Dataset/X_test.csv')
+X_train = pd.read_csv('Dataset/X_train.csv',index_col='DateTime')
+y_train = pd.read_csv('Dataset/y_train.csv',index_col='DateTime')
+X_test = pd.read_csv('Dataset/X_test.csv',index_col='DateTime')
+y_test = pd.read_csv('Dataset/y_test.csv',index_col='DateTime')
 
+df_target = pd.read_csv('Dataset/target_series.csv',index_col='DateTime')
+df_features = pd.read_csv('Dataset/feature_series.csv',index_col='DateTime')
 
 #
 # # Plotting the newly aggregated data along with the drift line used for imputation
