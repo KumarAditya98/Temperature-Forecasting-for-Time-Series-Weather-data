@@ -73,29 +73,6 @@ print(df_target[df_target.isna().values])
 # From this analysis, we see that 2 days don't have any observations in the original data. Since this is a time-series, I will have to use an appropriate method to impute this data.
 # The method I will be using will be drift method to impute missing values. I will perform this imputation after the train-test split only using the train data since with a train test split of 0.2/0.25, only the training data will have missing values.
 
-# Place-holder
-Vals = np.linspace(df_target.iloc[0,0],df_target.iloc[-1,0],len(df_target))
-Temp = pd.Series(Vals,name='T(degC)',index = df_target.index)
-Temp = pd.DataFrame(Temp)
-df_target = df_target.fillna(Temp)
-
-# Checking for NA's again to see if this worked
-print(df_target.isna().sum())
-
-# Checking to see the whether the two known missing days have been imputed '2016-10-26' & '2016-10-27'
-print(Temp.loc['2016-10-26':'2016-10-27'])
-print(df_target.loc['2016-10-26':'2016-10-27'])
-
-# Plotting the newly aggregated data along with the drift line used for imputation
-fig, ax = plt.subplots(figsize=(16,8))
-df_target['T(degC)'].plot(label="Daily time-series Data")
-Temp['T(degC)'].plot(label="Interpolation Line")
-plt.grid()
-plt.legend()
-plt.title("Plotting the daily aggregated time-series along with the interpolation line used to impute missing values")
-plt.xlabel("Time")
-plt.ylabel("Temperature (degC)")
-plt.show()
 
 # df_target contains only my dependent variable. I need to perform a similar aggregation for my independent variables.
 # Listing down my dependent variables below to see what type of aggregation will be required for each:
@@ -139,14 +116,62 @@ print(df_features[nan.any(axis=1)])
 # df_features.to_csv('Dataset/feature_series.csv',index=False)
 #-------------------------------------------------------------
 
-# Performing the train-test split so that data imputation can be performed prior to proceeding.
+# Performing the train-test split here so that data imputation can be performed prior to proceeding.
 X_train, X_test, y_train, y_test = train_test_split(df_features, df_target, shuffle=False, test_size=0.2, random_state=6313)
 
 # Making sure there aren't any null values in the test set
 print(X_test.isnull().all())
 print(y_test.isnull().all())
 
+# No null values. Will go ahead and save out the test data now
+#-----DON'T RUN------------------------------
+# X_test.to_csv('Dataset/X_test.csv')
+# y_test.to_csv('Dataset/y_test.csv')
+#-----DON'T RUN------------------------------
 
+# Confirming the presence of NA's in target train set
+print(y_train[y_train.isna().any(axis=1)])
+
+# Data imputation for target variable using drift method
+Vals = np.linspace(y_train.iloc[0,0],y_train.iloc[-1,0],len(y_train))
+Temp = pd.Series(Vals,name='T(degC)',index = y_train.index)
+Temp = pd.DataFrame(Temp)
+y_train = y_train.fillna(Temp)
+
+# Checking for NA's again to see if this worked
+print(y_train.isna().sum())
+
+# Checking to see the whether the two known missing days have been imputed '2016-10-26' & '2016-10-27'
+print(Temp.loc['2016-10-26':'2016-10-27'])
+print(y_train.loc['2016-10-26':'2016-10-27'])
+
+# Repeating the same for feature train set
+# Confirming the presence of NA's in feature train set
+print(X_train[X_train.isna().any(axis=1)])
+
+# Data imputation for feature variables using drift method
+Vals1 = np.linspace(X_train.iloc[0,0],X_train.iloc[-1,0],len(X_train))
+Temp1 = pd.DataFrame(Vals1,columns=X_train.columns,index = X_train.index)
+X_train = X_train.fillna(Temp1)
+
+# Checking for NA's again to see if this worked
+print(y_train.isna().sum())
+
+# Checking to see the whether the two known missing days have been imputed '2016-10-26' & '2016-10-27'
+print(Temp.loc['2016-10-26':'2016-10-27'])
+print(y_train.loc['2016-10-26':'2016-10-27'])
+
+
+# Plotting the newly aggregated data along with the drift line used for imputation
+fig, ax = plt.subplots(figsize=(16,8))
+df_target['T(degC)'].plot(label="Daily time-series Data")
+Temp['T(degC)'].plot(label="Interpolation Line")
+plt.grid()
+plt.legend()
+plt.title("Plotting the daily aggregated time-series along with the interpolation line used to impute missing values")
+plt.xlabel("Time")
+plt.ylabel("Temperature (degC)")
+plt.show()
 
 from toolbox import cal_autocorr
 lags = 90
