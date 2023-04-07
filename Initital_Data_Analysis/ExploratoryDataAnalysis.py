@@ -4,7 +4,6 @@ import matplotlib.pyplot as plt
 import os
 os.getcwd()
 
-
 X_train = pd.read_csv('Dataset/X_train.csv')
 y_train = pd.read_csv('Dataset/y_train.csv')
 X_test = pd.read_csv('Dataset/X_test.csv')
