@@ -5,11 +5,7 @@ from toolbox import cal_autocorr, ADF_Cal, kpss_test, Cal_rolling_mean_var
 # import os
 # os.getcwd()
 
-# Retrieving all datasets created from previous file.
-X_train = pd.read_csv('Dataset/X_train.csv',index_col='DateTime')
-y_train = pd.read_csv('Dataset/y_train.csv',index_col='DateTime')
-X_test = pd.read_csv('Dataset/X_test.csv',index_col='DateTime')
-y_test = pd.read_csv('Dataset/y_test.csv',index_col='DateTime')
+# Retrieving feature set and target set created from previous file.
 
 df_target = pd.read_csv('Dataset/target_series.csv',index_col='DateTime')
 df_features = pd.read_csv('Dataset/feature_series.csv',index_col='DateTime')
