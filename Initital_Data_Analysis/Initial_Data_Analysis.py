@@ -110,129 +110,94 @@ print(df_features[nan.any(axis=1)])
 
 # This feature set also has only those 2 dates worth of missing data. Will apply the same imputation to these time-series data.
 
+# ---------------------Code no longer in use-----------------------------------------------
 # Prior to train-test split, I'll go ahead and save out these two dataframes so that they can be used for broaded analyis in other files.
 #---- DON'T RUN -----------------------------------------
 # df_target.to_csv('Dataset/target_series.csv')
 # df_features.to_csv('Dataset/feature_series.csv')
 #-------------------------------------------------------------
 
-# Performing the train-test split here so that data imputation can be performed prior to proceeding.
-X_train, X_test, y_train, y_test = train_test_split(df_features, df_target, shuffle=False, test_size=0.2, random_state=6313)
-
-# Making sure there aren't any null values in the test set
-print(X_test.isnull().all())
-print(y_test.isnull().all())
-
-# No null values. Will go ahead and save out the test data now
-#-----DON'T RUN------------------------------
-# X_test.to_csv('Dataset/X_test.csv')
-# y_test.to_csv('Dataset/y_test.csv')
-#-----DON'T RUN------------------------------
-
-# Confirming the presence of NA's in target train set
-print(y_train[y_train.isna().any(axis=1)])
-
-# Data imputation for target train variable using drift method
-Vals = np.linspace(y_train.iloc[0,0],y_train.iloc[-1,0],len(y_train))
-Temp = pd.Series(Vals,name='T(degC)',index = y_train.index)
-Temp = pd.DataFrame(Temp)
-y_train = y_train.fillna(Temp)
-
-# Checking for NA's again to see if this worked
-print(y_train.isna().sum())
-
-# Checking to see the whether the two known missing days have been imputed '2016-10-26' & '2016-10-27'
-print(Temp.loc['2016-10-26':'2016-10-27'])
-print(y_train.loc['2016-10-26':'2016-10-27'])
-
-# Repeating the same for feature train set
-# Confirming the presence of NA's in feature train set
-print(X_train[X_train.isna().any(axis=1)])
-
-# Data imputation for feature train variables using drift method
-def linspace(column):
-    return np.linspace(column.iloc[0],column.iloc[-1],len(column))
-
-Temp1 = pd.DataFrame(X_train.apply(linspace, axis=0))
-X_train = X_train.fillna(Temp1)
-
-# Checking for NA's again to see if this worked
-print(X_train.isna().sum())
-
-# Checking to see the whether the two known missing days have been imputed '2016-10-26' & '2016-10-27'
-print(Temp1.loc['2016-10-26':'2016-10-27'])
-print(X_train.loc['2016-10-26':'2016-10-27'])
-
-# No null values. Will go ahead and save out the train data now
-#-----DON'T RUN------------------------------
-#X_train.to_csv('Dataset/X_train.csv')
-#y_train.to_csv('Dataset/y_train.csv')
-#-----DON'T RUN------------------------------
-
-# Plotting the newly aggregated data along with the drift line used for imputation
-fig, ax = plt.subplots(figsize=(16,8))
-df_target['T(degC)'].plot(label="Daily time-series Data")
-Temp['T(degC)'].plot(label="Interpolation Line")
-plt.grid()
-plt.legend()
-plt.title("Plotting the daily aggregated time-series along with the interpolation line used to impute missing values")
-plt.xlabel("Time")
-plt.ylabel("Temperature (degC)")
-plt.show()
-
-from toolbox import cal_autocorr
-lags = 90
-Temp_1_arr = np.array(Temp_1)
-cal_autocorr(Temp_1_arr,lags,'Temperature (degC)')
-plt.show()
-
-from toolbox import ADF_Cal
-ADF_Cal(Temp_1_arr)
-
-from toolbox import kpss_test
-kpss_test(Temp_1_arr)
-
-Temp_1 = pd.Series(df_2['T(degC)'].values,index = df_2.index,
-                 name = 'Temp (degC)')
-from toolbox import Cal_rolling_mean_var
-Cal_rolling_mean_var(Temp_1)
-from statsmodels.tsa.seasonal import STL
-STL = STL(Temp_1,period=365)
-res = STL.fit()
-T = res.trend
-S = res.seasonal
-R = res.resid
-fig = res.plot()
-plt.show()
-SOT = max(0,(1-((np.var(R))/(np.var(R+T)))))
-SOT
-SOS = max(0,(1-((np.var(T))/(np.var(R+S)))))
-SOS
-from statsmodels.tsa.seasonal import STL
-Temp = pd.Series(df['Tlog(degC)'].values,index = df_new.index,
-                 name = 'temp')
-STL = STL(Temp,period=144)
-res = STL.fit()
-T = res.trend
-S = res.seasonal
-R = res.resid
-fig = res.plot()
-plt.show()
-SOT = max(0,(1-((np.var(R))/(np.var(R+T)))))
-SOT
 
 
-
-# # Subsetting only the time stamps and target variable for plotting.
-# df_new = df.iloc[:,0:3:2]
-# print(df_new.head())
+# # Performing the train-test split here so that data imputation can be performed prior to proceeding.
+# X_train, X_test, y_train, y_test = train_test_split(df_features, df_target, shuffle=False, test_size=0.2, random_state=6313)
 #
-# type(df_new.DateTime)
-# df_new.index = pd.to_datetime(df_new.DateTime)
-# df_new = df_new.drop('DateTime',axis = 1)
+# # Making sure there aren't any null values in the test set
+# print(X_test.isnull().all())
+# print(y_test.isnull().all())
 #
-# fig, ax = plt.subplots(figsize=(30,16))
-# df['Tpot(K)'].plot()
-# plt.tight_layout()
+# # No null values. Will go ahead and save out the test data now
+# #-----DON'T RUN------------------------------
+# # X_test.to_csv('Dataset/X_test.csv')
+# # y_test.to_csv('Dataset/y_test.csv')
+# #-----DON'T RUN------------------------------
+#
+# # Confirming the presence of NA's in target train set
+# print(y_train[y_train.isna().any(axis=1)])
+#
+# # Data imputation for target train variable using drift method
+# Vals = np.linspace(y_train.iloc[0,0],y_train.iloc[-1,0],len(y_train))
+# Temp = pd.Series(Vals,name='T(degC)',index = y_train.index)
+# Temp = pd.DataFrame(Temp)
+# y_train = y_train.fillna(Temp)
+#
+# # Checking for NA's again to see if this worked
+# print(y_train.isna().sum())
+#
+# # Checking to see the whether the two known missing days have been imputed '2016-10-26' & '2016-10-27'
+# print(Temp.loc['2016-10-26':'2016-10-27'])
+# print(y_train.loc['2016-10-26':'2016-10-27'])
+#
+# # Repeating the same for feature train set
+# # Confirming the presence of NA's in feature train set
+# print(X_train[X_train.isna().any(axis=1)])
+#
+# # Data imputation for feature train variables using drift method
+# def linspace(column):
+#     return np.linspace(column.iloc[0],column.iloc[-1],len(column))
+#
+# Temp1 = pd.DataFrame(X_train.apply(linspace, axis=0))
+# X_train = X_train.fillna(Temp1)
+#
+# # Checking for NA's again to see if this worked
+# print(X_train.isna().sum())
+#
+# # Checking to see the whether the two known missing days have been imputed '2016-10-26' & '2016-10-27'
+# print(Temp1.loc['2016-10-26':'2016-10-27'])
+# print(X_train.loc['2016-10-26':'2016-10-27'])
+#
+# # No null values. Will go ahead and save out the train data now
+# #-----DON'T RUN------------------------------
+# #X_train.to_csv('Dataset/X_train.csv')
+# #y_train.to_csv('Dataset/y_train.csv')
+# #-----DON'T RUN------------------------------
+
+# The following plot and subset of data highlighted problems with drift method of data imputation
+#
+# # Plotting the newly aggregated target train data along with the drift line used for imputation
+# fig, ax = plt.subplots(figsize=(16,8))
+# y_train['T(degC)'].plot(label="Daily time-series Data")
+# Temp['T(degC)'].plot(label="Interpolation Line")
 # plt.grid()
+# plt.legend()
+# plt.title("Plotting the daily aggregated time-series along with the interpolation line used to impute missing values")
+# plt.xlabel("Time")
+# plt.ylabel("Temperature (degC)")
 # plt.show()
+
+# print(X_train.loc['2016-10-20':'2016-10-30'])
+# print(y_train.loc['2016-10-20':'2016-10-30'])
+# --------------------------- Code above not in use--------------------------------------------------
+# It seems like because of the size of the train set and the end value of the temperature, we are unable to retrieve an accurate representation of the data through a drift line. Imputation using drift may not be the best choice.
+
+# Instead I will do a simple linear interpolation for my dataset for the 2 missing dates.
+
+df_target.interpolate(method='time',axis=0,inplace=True)
+print(df_target.loc['2016-10-20':'2016-10-30'])
+df_features.interpolate(method='time',axis=0,inplace=True)
+print(df_features.loc['2016-10-20':'2016-10-30'].to_string())
+
+# Saving out these clean sets of data of targets and features for analysis in later files.
+df_target.to_csv('Dataset/target_series.csv')
+df_features.to_csv('Dataset/feature_series.csv')
+
