@@ -55,12 +55,9 @@ X_train.to_csv('Dataset/X_train.csv')
 y_train.to_csv('Dataset/y_train.csv')
 
 
-
-
-from toolbox import ADF_Cal
 ADF_Cal(target)
 
-from toolbox import kpss_test
+
 kpss_test(target)
 
 Temp_1 = pd.Series(y_train['T(degC)'].values,index = y_train.index,
