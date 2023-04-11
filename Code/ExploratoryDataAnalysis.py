@@ -48,6 +48,12 @@ plt.show()
 # Performing a train-test split before proceeding with further analysis.
 X_train, X_test, y_train, y_test = train_test_split(df_features, df_target, shuffle=False, test_size=0.2, random_state=6313)
 
+# Saving out these train and test datasets for model building later on.
+X_test.to_csv('Dataset/X_test.csv')
+y_test.to_csv('Dataset/y_test.csv')
+X_train.to_csv('Dataset/X_train.csv')
+y_train.to_csv('Dataset/y_train.csv')
+
 
 
 
