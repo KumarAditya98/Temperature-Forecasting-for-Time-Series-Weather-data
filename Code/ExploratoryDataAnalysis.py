@@ -77,6 +77,10 @@ SOT
 SOS = max(0,(1-((np.var(T))/(np.var(R+S)))))
 SOS
 
+# Doubts - If Seasonal data but stationary, do we need to perform differencing??? Do we need to remove seasonality before GPAC and model building? Seasonal differencing removes seasonality but its to make time series stationary, so if its already stationary, do we need to do differencing??
+# Back-transformation for differencing doubt. When we do differencing, we're transforming the data so the forecast we make is on this transformed data. Do we then require a back transformation on the forecasted values?
+
+
 # from toolbox import cal_autocorr
 # lags = 90
 # Temp_1_arr = np.array(Temp_1)
