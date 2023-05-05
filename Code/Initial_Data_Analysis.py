@@ -186,10 +186,10 @@ print(df_features[nan.any(axis=1)])
 # print(X_train.loc['2016-10-20':'2016-10-30'])
 # print(y_train.loc['2016-10-20':'2016-10-30'])
 # --------------------------- Code above not in use--------------------------------------------------
+
 # It seems like because of the size of the train set and the end value of the temperature, we are unable to retrieve an accurate representation of the data through a drift line. Imputation using drift may not be the best choice.
 
 # Instead I will do a simple linear interpolation for my dataset for the 2 missing dates.
-
 df_target.interpolate(method='time',axis=0,inplace=True)
 print(df_target.loc['2016-10-20':'2016-10-30'])
 df_features.interpolate(method='time',axis=0,inplace=True)
