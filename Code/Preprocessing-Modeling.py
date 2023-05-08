@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-from toolbox import cal_autocorr, ADF_Cal, kpss_test, Cal_rolling_mean_var, ACF_PACF_Plot, diff
+from toolbox import cal_autocorr, ADF_Cal, kpss_test, Cal_rolling_mean_var, ACF_PACF_Plot, diff, Cal_GPAC,lm_param_estimate
 import seaborn as sns
 from sklearn.model_selection import train_test_split
 from statsmodels.tsa.seasonal import STL
@@ -148,19 +148,21 @@ print(vif)
 # Now all my features have VIF value of less than 5 which indicates I've dropped all the columns that cause multi-collinearity. Now I can proceed with other analysis.
 
 # Multiple linear regression analysis.
+#--------------------------DECIDED NOT TO DO THIS--------------------------------------------------
 # Before fitting my new scaled train features into a multiple linear regression model, I will perform a slight data augmentation to treat for any outlier values that may affect my model predictions drastically. Since my data is scaled to 0 mean and unit variance, any value less tha  -5 and beyond 5 will be treated as an outlier that may skew my linear regression. To deal with such values, I will clip these values to -5 and 5 respectively.
 # First inspecting whether such values exist in my dataset
-print(np.min(scaled_xtrain_df))
-print(np.max(scaled_xtrain_df))
-# 3 columns seems to have high outlier values
-
-# Performing data augmentation
-scaled_xtrain_df = np.clip(scaled_xtrain_df, -5, 5)
-# Checking to see if augmentation was successful
-print(np.min(scaled_xtrain_df))
-print(np.max(scaled_xtrain_df))
-# It worked.
+# print(np.min(scaled_xtrain_df))
+# print(np.max(scaled_xtrain_df))
+# # 3 columns seems to have high outlier values
+#
+# # Performing data augmentation
+# # scaled_xtrain_df = np.clip(scaled_xtrain_df, -5, 5)
+# # Checking to see if augmentation was successful
+# print(np.min(scaled_xtrain_df))
+# print(np.max(scaled_xtrain_df))
+# # It worked.
 # The training data has been augmented.
+#---------------------------------NOT RUNNING ABOVE--------------------------------------
 
 # Before proceeding, I will also drop the same columns in X_test that i dropped from my X_train so that i can make predictions later on
 scaled_xtest_df = pd.DataFrame(scaled_xtest,columns=X_train.columns)
@@ -177,25 +179,31 @@ print(model.params)
 print(model.summary())
 
 # I get a very good adjusted R-squared value of 99.7%. Using the features in my training data, I'm able to explain 99.7% of the variability in my target.
-# However, looking closely at all the parameter values, I do see that 2 parameters have a high P-value > 0.05 and the confidence interval indicates that these parameters can have a coefficient of 0 as well. Therefore, I'll remove the first highest P-value and rebuild my model to see the effect on AIC, BIC and Adjusted-R Squared value.
+# However, looking closely at all the parameter values, I do see that 3 parameters have a high P-value > 0.05 and the confidence interval indicates that these parameters can have a coefficient of 0 as well. Therefore, I'll remove the first highest P-value and rebuild my model to see the effect on AIC, BIC and Adjusted-R Squared value.
 # The first identified variable is 'CO2(ppm)'
 scaled_xtrain_df1 = scaled_xtrain_df.drop(columns='CO2(ppm)',axis=1)
 model1 = sm.OLS(y_train_df,scaled_xtrain_df1).fit()
 print(model1.params)
 print(model1.summary())
-# The AIC has only slightly increased by a unit of 1, however, there appears to be no change in adjusted r-squared value. The BIC value has gone down indicating an improved model performance. I'll retain dropping this feature.
-# Another feature that still has an insiginifcant p-value and confidence interval containing a 0 is 'rain(mm)'. I'll proceed with dropping this feature as well.
-scaled_xtrain_df2 = scaled_xtrain_df1.drop(columns='rain(mm)',axis=1)
+# The AIC has gone down along with BIC indicating a better performance, there appears to be no change in adjusted r-squared value. I'll retain dropping this feature.
+# Another feature that still has an insiginifcant p-value and confidence interval containing a 0 is 'wv(m/s)'. I'll proceed with dropping this feature as well.
+scaled_xtrain_df2 = scaled_xtrain_df1.drop(columns='wv(m/s)',axis=1)
 model2 = sm.OLS(y_train_df,scaled_xtrain_df2).fit()
 print(model2.params)
 print(model2.summary())
-# After removing this feature, the model performance has not changed. The AIC has increased by 1unit but BIC has dropped. Adjusted R-squared value remains the same indicating this model performs well! All the parameters are also withinin the significant range. Additionnally, the F-test statistic indicates that we can reject the null hypothesis that this model and an intercept only model perform the same indicating this model with the given features performs much better. I'll consider this model to be my final model.
+# The AIC has gone down along with BIC indicating a better performance, there appears to be no change in adjusted r-squared value. I'll retain dropping this feature.
+# Another feature that still has an insiginifcant p-value and confidence interval containing a 0 is 'rain(mm)'. I'll proceed with dropping this feature as well.
+scaled_xtrain_df3 = scaled_xtrain_df2.drop(columns='rain(mm)',axis=1)
+model3 = sm.OLS(y_train_df,scaled_xtrain_df3).fit()
+print(model3.params)
+print(model3.summary())
+# After removing this feature, the model performance has improved further. The AIC has decreased and BIC has dropped as well. Adjusted R-squared value remains the same indicating this model performs well! All the parameters are also withinin the significant range. Additionnally, the F-test statistic indicates that we can reject the null hypothesis that this model and an intercept only model perform the same indicating this model with the given features performs much better. I'll consider this model to be my final model.
 
 # Removing the same features from my test set to perform forecasts.
 scaled_xtest_df = sm.add_constant(scaled_xtest_df)
 # Dropping the columns based on above analysis in test set as well.
-scaled_xtest_df = scaled_xtest_df.drop(columns=['CO2(ppm)','rain(mm)'],axis=1)
-predictions = model2.predict(scaled_xtest_df)
+scaled_xtest_df = scaled_xtest_df.drop(columns=['CO2(ppm)','rain(mm)','wv(m/s)'],axis=1)
+predictions = model3.predict(scaled_xtest_df)
 
 predictions.index = y_test.index
 fig, ax = plt.subplots(figsize = (16,8))
@@ -208,14 +216,62 @@ plt.xlabel('Date')
 plt.ylabel('Temperature')
 plt.show()
 
-# Testing out my residuals
+# Looking at the model performance
+RMSE = np.sqrt(np.square(np.subtract(y_test['T(degC)'],predictions)).mean())
+print(f"The RMSE of this model is: {RMSE}")
+# According to this metric, the model is very performing well on the unseen test set.
 
-# Calculating the forecast error
-predictions = pd.Series(predictions,name='Forecast')
-Error = np.array(y_test['T(degC)']-predictions)
-lags = 50
-cal_autocorr(Error,lags,'Prediction Error')
+# Testing out the whiteness of residuals, first visually
+residuals = model3.resid
+cal_autocorr(residuals,20,'Residual ACF for OLS Model')
 plt.show()
+# Research: Looking at this ACF plot, we can say that the correlations within the target series have not been fully captured by this OLS model since the residuals are not white. Possible reason behind this is potentially the dataset i'm working with is non-linear and yet i'm trying to fit into a linear model which may cause the residuals to not be white. Alternatively, it could also be due the fact that my data has high autocorrelation which is not being accounted for by this linear model.
 
-MSE = np.square(np.subtract(y_test['T(degC)'],predictions)).mean()
-print(MSE)
+# Performing the Chi-square test to mathematically find out the whiteness of the residuals.
+test_results = sm.stats.diagnostic.acorr_ljungbox(residuals, lags=[1])
+print(test_results)
+# Now checking for lag for 365 since the data has seasonality of 365
+test_results1 = sm.stats.diagnostic.acorr_ljungbox(residuals, lags=[365])
+print(test_results1)
+# Both these test results state that we can reject the null hypothesis that the residuals come from an independently and identical distibution and hence reinforces our visual observation that the residuals are not white.
+
+# The mean and variance of the residuals
+print(f"The mean of the residuals is: {np.mean(residuals)}")
+print(f"The variance of the residuals is: {np.var(residuals)}")
+# the residuals do seem to have a mean of 0 and constant variance of 0.155 which is desirable, however, the residuals are not white indicating the presence of uncaptured correlations in the target series with a simple OLS model.
+
+# # Calculating the forecast error
+# predictions = pd.Series(predictions,name='Forecast')
+# Error = np.array(y_test['T(degC)']-predictions)
+# lags = 50
+# cal_autocorr(Error,lags,'Prediction Error')
+# plt.show()
+
+# Building the base models now - Average, Drift, Naive, SES
+
+# Starting the ARIMA/SARIMA model development
+# ry = sm.tsa.stattools.acf(y_train['T(degC)'].values, nlags=500)
+# ryy = ry[::-1]
+# Ry = np.concatenate((ryy, ry[1:]))
+# Cal_GPAC(Ry,50,50)
+# Before starting the ARIMA/SARIMA modeling, i definitely will need to seasonally difference by data by one order as there is extremely high correlation in the dataset as indicated previously by ACF/PACF plot. Another reason i've decided to implement seasonal differencing before proceeding is since my seasonality index is 365, i cannot possibly build a GPAC with such high number of matrix dimension to find the right order. Hence, i need to perform order one seasonal differencing (365) here before proceeding and then do my train-test spit. I will have to trade-off my loss of datapoints before proceeding.
+
+df_target_diff = diff(df_target,'T(degC)',365).copy()
+# Maintaining original df by removing the new column
+df_target.drop(columns=['T(degC)_365_Diff'],axis=1,inplace=True)
+# Dropping the previous target column from new dataframe along with the null rows introduced after differencing
+df_target_diff.drop(columns='T(degC)',axis=1,inplace=True)
+df_target_diff = df_target_diff.dropna()
+# From prior analysis, i already know that this new differenced time series is also stationary, infact it is more stationary. Now i'll proceed with the train-test split and further analysis
+
+target_train, target_test = train_test_split(df_target_diff, shuffle=False, test_size=0.2, random_state=6313)
+ry = sm.tsa.stattools.acf(target_train['T(degC)_365_Diff'].values, nlags=100)
+ryy = ry[::-1]
+Ry = np.concatenate((ryy, ry[1:]))
+Cal_GPAC(Ry,30,30)
+
+ACF_PACF_Plot(target_train['T(degC)_365_Diff'].values,90)
+# A preliminary order i'm deciding to select is ARMA(1,0)
+
+lm_param_estimate(target_train,1,0)
+lm_param_estimate(target_train,5,5)

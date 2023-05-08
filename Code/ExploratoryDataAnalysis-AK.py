@@ -119,7 +119,7 @@ print(SOS)
 # Back-transformation for differencing doubt. When we do differencing, we're transforming the data so the forecast we make is on this transformed data. Do we then require a back transformation on the forecasted values?
 
 # For testing purpose, I will perform a 1 order seasonal differencing (365) in the dataset
-df_target_diff = diff(df_target,'T(degC)',365)
+df_target_diff = diff(df_target,'T(degC)',365).copy()
 # Maintaining original df by removing the new column
 df_target.drop(columns=['T(degC)_365_Diff'],axis=1,inplace=True)
 
@@ -127,10 +127,11 @@ Cal_rolling_mean_var(df_target_diff['T(degC)_365_Diff'].dropna())
 ADF_Cal(df_target_diff['T(degC)_365_Diff'].dropna())
 kpss_test(df_target_diff['T(degC)_365_Diff'].dropna())
 # The process still remains stationary judging by above tests, in fact becomes more stationary based on ADF test statistic.
-ACF_PACF_Plot(df_target_diff['T(degC)_365_Diff'].dropna(),lags)
+ACF_PACF_Plot(df_target_diff['T(degC)_365_Diff'].dropna(),500)
 plt.show()
 # ACF-PACF plot display a much more cleaner trend with decay in ACF plot and cut-off in PACF plot. This is a typical AR process behavior. This makes my assumption that the seasonality is 365 correct.
 # I can make use of this seasonally differenced dataset for modeling as well since everything is right. However, one disadvantage is the loss of data points due to the seasonal differencing of 365. I will first proceed with my original dataset and then shift to this if that is not producing good results. Train-test split pending for this differenced data.
 
 # This will be the end for my Exploratory Data Analysis. Continued in pre-processing and modeling python file
 
+df_temp =

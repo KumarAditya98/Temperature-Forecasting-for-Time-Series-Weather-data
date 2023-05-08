@@ -599,6 +599,92 @@ def lm_param_estimate(y,na,nb):
 #         theta = theta_new.copy()
 #
 
+def forecast(y,na,nb):
+    """
+    :param na: order of ar exclude 1
+    :param nb: order of ma exclude 1
+    :return: model_hat,e,Q,model
+    """
+    np.random.seed(6313)
+    #Hypothesis
+    # H0: Null hypothesis: The residuals are uncorrelated, hence it is white
+    # This can be shown when Q < Qc or when the p-value is higher than
+    # the threshold
+    # HA Alternative hypothesis: The residuals are correlated, hence
+    # it is not white.This can be shown when Q > Qc or when
+    # the p - value is lower than the threshold.
+    lags = 20
+    N = len(y)  # Number of samples
+    # Generate ARMA Process
+    # y(t) - 0.5y(t-1) = e(t) + 0.2e (t-1)
+    # arparams = np.array([0.5])
+    # maparams = np.array([0.2])
+    # # ARMA Process Order & coefficients
+    # na = len(arparams)
+    # nb = len(maparams)
+    # ar = np.r_[1, -arparams]
+    # ma = np.r_[1, maparams]
+    # Construct ARMA Process
+    #arma_process = sm.tsa.ArmaProcess(ar, ma)
+    #print("Is this a stationary process : ", arma_process.isstationary)
+    # Generate ARMA Process dataset
+    #y = arma_process.generate_sample(N)
+    y_var = np.var(y)
+    print("Variance of y:", y_var)
+    #change to your autocorrelation function
+    ry2 = autoCorrelationFunction(y, lags, title="dummy data", axes=None)
+    # Theoretical ACF
+    #ry = arma_process.acf(lags=20)
+    #ry1 = ry[:: -1]
+    #ry2 = np.concatenate((np.reshape(ry1, lags), ry[1:]))
+    # ====
+    # GPAC Table
+    # calcGPAC(ry2, 7, 7)
+    # ====
+    # ARMA parameter Estimation
+    #model = sm.tsa.ARIMA(y, (na, nb)).fit(trend='nc', disp=0) # no trend
+    model = sm.tsa.arima.ARIMA(y, order=(na, 0, nb), trend='n').fit()
+    # for i in range(na):
+    #     print("The AR coefficient af)".format(i), "is:", model.params[i])
+    #     for i in range(nb):
+    #         print("Thee
+    #         MA coefficient b)".format(i), "is:", model.params[i + na])
+    #     #print(model.summary())
+    # ===
+    # Prediction
+    model_hat = model.predict(start=0, end=N - 1)
+    #y_hat = model.forecast(steps=len(test))
+    # ==
+    # Residuals Testing and Chi-Square test
+    e = y - model_hat
+    re = autoCorrelationFunction(pd.Series(e), lags, 'ACF of residuals')
+    #print(f"{re[lags:lags+5]}")
+    #one_sided = singleACF(re)
+    Q = len(y) * np.sum(np.square(re[lags+1:]))
+    DOF = lags - na - nb
+    alfa = 0.01
+    chi_critical = chi2.ppf(1 - alfa, DOF)
+    print(f"Q is {Q} and chi critical is {chi_critical}")
+    if Q < chi_critical:
+        print("The residual is white ")
+    else:
+        print("The residual is NOT white ")
+    lbvalue, pvalue = sm.stats.acorr_ljungbox(e, lags=[lags])
+    # print(lbvalue)
+    # print(pvalue)
+    plt.figure()
+    plt.plot(y, 'r', label="True data")
+    plt.plot(model_hat, 'b', label="Fitted data")
+    plt.xlabel("Samples")
+    plt.ylabel("Magnitude")
+    plt.legend()
+    plt.title(" Train versus One Step Prediction")
+    plt.tight_layout()
+    plt.show()
+    return model_hat,e,Q,model
+
+
+
 def AR_process_check():
     N = int(input("Enter number of samples:"))
     na = int(input("Enter the order of the AR process:"))
