@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-from toolbox import cal_autocorr, ADF_Cal, kpss_test, Cal_rolling_mean_var, ACF_PACF_Plot, diff, Cal_GPAC,lm_param_estimate,autocorrelation, forecast
+from toolbox import cal_autocorr, ADF_Cal, kpss_test, Cal_rolling_mean_var, ACF_PACF_Plot, diff, Cal_GPAC,lm_param_estimate,autocorrelation,forecast
 import seaborn as sns
 from sklearn.model_selection import train_test_split
 from statsmodels.tsa.seasonal import STL
@@ -251,7 +251,7 @@ print(test_results1)
 # The mean and variance of the residuals
 print(f"The mean of the residuals is: {np.mean(residuals)}")
 print(f"The variance of the residuals is: {np.var(residuals)}")
-# the residuals do seem to have a mean of 0 and constant variance of 0.155 which is desirable, however, the residuals are not white indicating the presence of uncaptured correlations in the target series with a simple OLS model.
+# the residuals do seem to have a mean of 0 and constant variance of 0.155 which is desirable, however, the residuals are not white indicating the presence of uncaptured correlations in the target series using a simple OLS model.
 
 # # Calculating the forecast error
 # predictions = pd.Series(predictions,name='Forecast')
@@ -260,7 +260,19 @@ print(f"The variance of the residuals is: {np.var(residuals)}")
 # cal_autocorr(Error,lags,'Prediction Error')
 # plt.show()
 
-# Building the base models now - Average, Drift, Naive, SES
+# Building the base models now - Average, Drift, Naive, SES using original y_train and y_test
+# Average method
+y_pred1 = np.mean(y_train.value.values)
+y_pred_avg = np.array([y_pred1]*len(y_test))
+error_avg = y_test.value.values - y_pred_avg
+RMSE_avg = np.sqrt(np.square(error_avg).mean())
+
+# Naive method
+y_pred2 = y_train.value.values[-1]
+y_pred_naive = np.array([y_pred2]*len(y_test))
+error_naive = y_test.value.values - y_pred_naive
+RMSE_naive = np.sqrt(np.square(error_naive).mean())
+
 
 # Starting the ARIMA/SARIMA model development
 # ry = sm.tsa.stattools.acf(y_train['T(degC)'].values, nlags=500)
@@ -287,3 +299,27 @@ ACF_PACF_Plot(target_train['T(degC)_365_Diff'].values,90)
 # A preliminary order i'm deciding to select is ARMA(1,0)
 
 lm_param_estimate(target_train,1,0)
+sarima_model = sm.tsa.statespace.SARIMAX(target_train, order=(3, 0, 0), seasonal_order = (0,1,1,365), trend='n').fit()
+model_hat = arima_model.predict(start=0, end=len(target_train) - 1)
+e = target_train.reset_index()['T(degC)_365_Diff'] - model_hat.reset_index()['predicted_mean']
+Re = autocorrelation(np.array(e), 20)
+cal_autocorr(e,20,'ACF of residuals')
+plt.show()
+Q = len(y) * np.sum(np.square(Re[20+1:]))
+DOF = lags - na - nb
+alfa = 0.01
+chi_critical = scipy.stats.chi2.ppf(1 - alfa, DOF)
+print(f"Q is {Q} and chi critical is {chi_critical}")
+if Q < chi_critical:
+    print("The residual is white ")
+else:
+    print("The residual is NOT white ")
+plt.figure()
+plt.plot(y, 'r', label="True data")
+plt.plot(model_hat, 'b', label="Fitted data")
+plt.xlabel("Samples")
+plt.ylabel("Magnitude")
+plt.legend()
+plt.title(" Train versus One Step Prediction")
+plt.tight_layout()
+plt.show()
