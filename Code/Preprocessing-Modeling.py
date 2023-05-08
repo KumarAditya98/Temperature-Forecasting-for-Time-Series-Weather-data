@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-from toolbox import cal_autocorr, ADF_Cal, kpss_test, Cal_rolling_mean_var, ACF_PACF_Plot, diff, Cal_GPAC,lm_param_estimate,autocorrelation,forecast
+from toolbox import cal_autocorr, ADF_Cal, kpss_test, Cal_rolling_mean_var, ACF_PACF_Plot, diff, Cal_GPAC,lm_param_estimate,autocorrelation
 import seaborn as sns
 from sklearn.model_selection import train_test_split
 from statsmodels.tsa.seasonal import STL
@@ -9,6 +9,7 @@ import statsmodels.tsa.holtwinters as ets
 from sklearn.preprocessing import StandardScaler
 from statsmodels.stats.outliers_influence import variance_inflation_factor
 import statsmodels.api as sm
+import statsmodels.tsa.api as smt
 import scipy
 
 X_train = pd.read_csv('Dataset/X_train.csv',index_col='DateTime')
@@ -51,7 +52,6 @@ plt.show()
 cal_autocorr(holt2.resid,50,'ACF of Holt-Winter model (w/o damp) residuals')
 plt.show()
 # We can clearly see that the ACF plot does not resemble an impulse, indicating that all the correlations in the train data have not been captured by these Holt-Winter models. Damping does not enhance or degrade the performance of the fitted models as it is clear with the ACF plot for residuals.
-
 
 # Feature Selection/Elimination based on Multi-Collinearity
 # From the previous analysis of correlation matrix, we did observe a high degree of multi-collinearity between the features of the dataset. In this section i'll try eliminate all such features that have multi collinearity using SVD, condition number and VIF methods.
@@ -262,17 +262,16 @@ print(f"The variance of the residuals is: {np.var(residuals)}")
 
 # Building the base models now - Average, Drift, Naive, SES using original y_train and y_test
 # Average method
-y_pred1 = np.mean(y_train.value.values)
+y_pred1 = np.mean(y_train.values)
 y_pred_avg = np.array([y_pred1]*len(y_test))
-error_avg = y_test.value.values - y_pred_avg
+error_avg = y_test.values.ravel() - y_pred_avg
 RMSE_avg = np.sqrt(np.square(error_avg).mean())
 
 # Naive method
-y_pred2 = y_train.value.values[-1]
+y_pred2 = y_train.values[-1]
 y_pred_naive = np.array([y_pred2]*len(y_test))
-error_naive = y_test.value.values - y_pred_naive
+error_naive = y_test.values.ravel() - y_pred_naive.ravel()
 RMSE_naive = np.sqrt(np.square(error_naive).mean())
-
 
 # Starting the ARIMA/SARIMA model development
 # ry = sm.tsa.stattools.acf(y_train['T(degC)'].values, nlags=500)
@@ -295,18 +294,16 @@ ryy = ry[::-1]
 Ry = np.concatenate((ryy, ry[1:]))
 Cal_GPAC(Ry,30,30)
 
-ACF_PACF_Plot(target_train['T(degC)_365_Diff'].values,90)
 # A preliminary order i'm deciding to select is ARMA(1,0)
 
-lm_param_estimate(target_train,1,0)
-sarima_model = sm.tsa.statespace.SARIMAX(target_train, order=(3, 0, 0), seasonal_order = (0,1,1,365), trend='n').fit()
+lm_param_estimate(target_train,2,0)
+arima_model = sm.tsa.arima.ARIMA(target_train,order=(3, 0, 0),seasonal_order=(0,0,1,365),trend='n').fit()
 model_hat = arima_model.predict(start=0, end=len(target_train) - 1)
 e = target_train.reset_index()['T(degC)_365_Diff'] - model_hat.reset_index()['predicted_mean']
-Re = autocorrelation(np.array(e), 20)
-cal_autocorr(e,20,'ACF of residuals')
-plt.show()
-Q = len(y) * np.sum(np.square(Re[20+1:]))
-DOF = lags - na - nb
+Re = autocorrelation(np.array(e), 100)
+#ACF_PACF_Plot(e,500)
+Q = len(e) * np.sum(np.square(Re[100+1:]))
+DOF = 100 - 3 - 0
 alfa = 0.01
 chi_critical = scipy.stats.chi2.ppf(1 - alfa, DOF)
 print(f"Q is {Q} and chi critical is {chi_critical}")
@@ -314,12 +311,21 @@ if Q < chi_critical:
     print("The residual is white ")
 else:
     print("The residual is NOT white ")
-plt.figure()
-plt.plot(y, 'r', label="True data")
-plt.plot(model_hat, 'b', label="Fitted data")
+target_train.index = pd.to_datetime(target_train.index)
+model_hat.index = target_train.index
+fig, ax = plt.subplots(figsize=(16,8))
+target_train.plot(label="True data")
+model_hat.plot(label="Fitted data")
 plt.xlabel("Samples")
 plt.ylabel("Magnitude")
 plt.legend()
 plt.title(" Train versus One Step Prediction")
 plt.tight_layout()
 plt.show()
+
+#sarima_model = smt.SARIMAX(target_train, order=(3,0,0),seasonal_order=(0,0,1,365), trend='n',freq='D',enforce_invertibility=False).fit(method=)
+
+ry = sm.tsa.stattools.acf(y_train['T(degC)'].values, nlags=100)
+ryy = ry[::-1]
+Ry = np.concatenate((ryy, ry[1:]))
+Cal_GPAC(Ry,30,30)
