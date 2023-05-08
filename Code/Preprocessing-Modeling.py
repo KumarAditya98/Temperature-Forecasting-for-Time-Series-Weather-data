@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-from toolbox import cal_autocorr, ADF_Cal, kpss_test, Cal_rolling_mean_var, ACF_PACF_Plot, diff, Cal_GPAC,lm_param_estimate,autocorrelation
+from toolbox import cal_autocorr, ADF_Cal, kpss_test, Cal_rolling_mean_var, ACF_PACF_Plot, diff, Cal_GPAC,lm_param_estimate,autocorrelation, forecast
 import seaborn as sns
 from sklearn.model_selection import train_test_split
 from statsmodels.tsa.seasonal import STL
@@ -287,4 +287,3 @@ ACF_PACF_Plot(target_train['T(degC)_365_Diff'].values,90)
 # A preliminary order i'm deciding to select is ARMA(1,0)
 
 lm_param_estimate(target_train,1,0)
-lm_param_estimate(target_train,5,5)
