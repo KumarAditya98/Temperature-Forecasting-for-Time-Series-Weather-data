@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-from toolbox import cal_autocorr, ADF_Cal, kpss_test, Cal_rolling_mean_var, ACF_PACF_Plot, diff, Cal_GPAC,lm_param_estimate
+from toolbox import cal_autocorr, ADF_Cal, kpss_test, Cal_rolling_mean_var, ACF_PACF_Plot, diff, Cal_GPAC,lm_param_estimate,autocorrelation
 import seaborn as sns
 from sklearn.model_selection import train_test_split
 from statsmodels.tsa.seasonal import STL
@@ -9,6 +9,7 @@ import statsmodels.tsa.holtwinters as ets
 from sklearn.preprocessing import StandardScaler
 from statsmodels.stats.outliers_influence import variance_inflation_factor
 import statsmodels.api as sm
+import scipy
 
 X_train = pd.read_csv('Dataset/X_train.csv',index_col='DateTime')
 X_test = pd.read_csv('Dataset/X_test.csv',index_col='DateTime')
@@ -227,7 +228,19 @@ cal_autocorr(residuals,20,'Residual ACF for OLS Model')
 plt.show()
 # Research: Looking at this ACF plot, we can say that the correlations within the target series have not been fully captured by this OLS model since the residuals are not white. Possible reason behind this is potentially the dataset i'm working with is non-linear and yet i'm trying to fit into a linear model which may cause the residuals to not be white. Alternatively, it could also be due the fact that my data has high autocorrelation which is not being accounted for by this linear model.
 
-# Performing the Chi-square test to mathematically find out the whiteness of the residuals.
+# Find out the Q-value and performing box-pierce test
+Ry = autocorrelation(residuals,20)
+Q = len(residuals) * np.sum(np.square(Ry[20+1:]))
+DOF = 20 - 7
+alfa = 0.01
+chi_critical = scipy.stats.chi2.ppf(1 - alfa, DOF)
+print(f"Q is {Q} and chi critical is {chi_critical}")
+if Q < chi_critical:
+    print("The residual is white ")
+else:
+    print("The residual is NOT white ")
+
+# Performing the Chi-square test using ljung-box test to mathematically find out the whiteness of the residuals.
 test_results = sm.stats.diagnostic.acorr_ljungbox(residuals, lags=[1])
 print(test_results)
 # Now checking for lag for 365 since the data has seasonality of 365

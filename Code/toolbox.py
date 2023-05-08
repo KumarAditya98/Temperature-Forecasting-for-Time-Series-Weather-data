@@ -7,6 +7,7 @@ import statsmodels.api as sm
 import seaborn as sns
 from statsmodels.graphics.tsaplots import plot_acf , plot_pacf
 from scipy import signal
+import scipy
 
 def Cal_rolling_mean_var(x):
     rMean = []
@@ -657,13 +658,13 @@ def forecast(y,na,nb):
     # ==
     # Residuals Testing and Chi-Square test
     e = y - model_hat
-    re = autoCorrelationFunction(pd.Series(e), lags, 'ACF of residuals')
+    re = autocorrelation(e, lags, 'ACF of residuals')
     #print(f"{re[lags:lags+5]}")
     #one_sided = singleACF(re)
     Q = len(y) * np.sum(np.square(re[lags+1:]))
     DOF = lags - na - nb
     alfa = 0.01
-    chi_critical = chi2.ppf(1 - alfa, DOF)
+    chi_critical = scipy.stats.chi2.ppf(1 - alfa, DOF)
     print(f"Q is {Q} and chi critical is {chi_critical}")
     if Q < chi_critical:
         print("The residual is white ")
