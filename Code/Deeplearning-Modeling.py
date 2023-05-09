@@ -80,3 +80,4 @@ plt.show()
 e_forecast = test.reset_index()['T(degC)'] - test.reset_index()['Predictions']
 RMSE = np.sqrt(np.square(e_forecast).mean())
 print(RMSE)
+
