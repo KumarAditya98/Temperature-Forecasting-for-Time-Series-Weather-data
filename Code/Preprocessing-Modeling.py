@@ -274,11 +274,9 @@ error_naive = y_test.values.ravel() - y_pred_naive.ravel()
 RMSE_naive = np.sqrt(np.square(error_naive).mean())
 
 # Starting the ARIMA/SARIMA model development
-# ry = sm.tsa.stattools.acf(y_train['T(degC)'].values, nlags=500)
-# ryy = ry[::-1]
-# Ry = np.concatenate((ryy, ry[1:]))
-# Cal_GPAC(Ry,50,50)
-# Before starting the ARIMA/SARIMA modeling, i definitely will need to seasonally difference by data by one order as there is extremely high correlation in the dataset as indicated previously by ACF/PACF plot. Another reason i've decided to implement seasonal differencing before proceeding is since my seasonality index is 365, i cannot possibly build a GPAC with such high number of matrix dimension to find the right order. Hence, i need to perform order one seasonal differencing (365) here before proceeding and then do my train-test spit. I will have to trade-off my loss of datapoints before proceeding.
+# Although initially i had considered my data to be stationary and determined that no differencing needs to be applied. Looking at the ACF/PACF plot of the data again, there appears to be high seasonality in the data. This is also reinforced by the Strength of seasonality using STL decomposition previously. A consistent pattern in the ACF/PACF suggests seasonality. As a consequence of this observation, instead of the ARIMA model, I will investigate the SARIMA model. There is no need for non-seasonal differencing since the data is already stationary. However, before proceeding now (based on several research papers referenced: https://article.sciencepublishinggroup.com/pdf/10.11648.j.ijema.20210906.17.pdf, I will perform the seasonal differencing to eliminate this high seasonality. This is because high correlations in the time series can make it difficult to build accurate ARIMA models because the long-term dependencies in the time series are difficult to capture using only a few lags.
+
+# Hence, i need to perform order one seasonal differencing (seasonality index as 365 as decided before) here before proceeding and then do my train-test spit. I will have to trade-off my loss of datapoints before proceeding.
 
 df_target_diff = diff(df_target,'T(degC)',365).copy()
 # Maintaining original df by removing the new column
@@ -286,7 +284,7 @@ df_target.drop(columns=['T(degC)_365_Diff'],axis=1,inplace=True)
 # Dropping the previous target column from new dataframe along with the null rows introduced after differencing
 df_target_diff.drop(columns='T(degC)',axis=1,inplace=True)
 df_target_diff = df_target_diff.dropna()
-# From prior analysis, i already know that this new differenced time series is also stationary, infact it is more stationary. Now i'll proceed with the train-test split and further analysis
+# From prior analysis, i already know that this new differenced time series is also stationary, infact it is more stationary as indicated by ADF test. Now i'll proceed with the train-test split and further analysis.
 
 target_train, target_test = train_test_split(df_target_diff, shuffle=False, test_size=0.2, random_state=6313)
 ry = sm.tsa.stattools.acf(target_train['T(degC)_365_Diff'].values, nlags=100)
@@ -294,16 +292,25 @@ ryy = ry[::-1]
 Ry = np.concatenate((ryy, ry[1:]))
 Cal_GPAC(Ry,30,30)
 
-# A preliminary order i'm deciding to select is ARMA(1,0)
+# Keeping the ACF/PACF plot handy
+ACF_PACF_Plot(target_train['T(degC)_365_Diff'].values,100)
+# Judging by just the ACF/PACF, i can guess that my AR only process order is 3 since the PACF cuts off after 3 lags. But i'll consider GPAC for time being
 
-lm_param_estimate(target_train,2,0)
-arima_model = sm.tsa.arima.ARIMA(target_train,order=(3, 0, 0),seasonal_order=(0,0,1,365),trend='n').fit()
-model_hat = arima_model.predict(start=0, end=len(target_train) - 1)
-e = target_train.reset_index()['T(degC)_365_Diff'] - model_hat.reset_index()['predicted_mean']
-Re = autocorrelation(np.array(e), 100)
-#ACF_PACF_Plot(e,500)
-Q = len(e) * np.sum(np.square(Re[100+1:]))
-DOF = 100 - 3 - 0
+# A preliminary order i'm deciding to select is ARMA(1,0); Another possible order i'll select is (3,0)
+lm_param_estimate(target_train,1,0)
+# Algorithm converges very quickly
+lm_param_estimate(target_train,3,0)
+# Algorithm converges very quickly
+
+# ARIMA(1,0,0)
+arima_model1 = sm.tsa.arima.ARIMA(target_train,order=(1, 0, 0),trend='n').fit()
+print(arima_model1.summary())
+model_hat1 = arima_model1.predict(start=0, end=len(target_train) - 1)
+e1 = target_train.reset_index()['T(degC)_365_Diff'] - model_hat1.reset_index()['predicted_mean']
+Re1 = autocorrelation(np.array(e1), 100)
+ACF_PACF_Plot(e1,100)
+Q = len(e1) * np.sum(np.square(Re1[100+1:]))
+DOF = 100 - 1 - 0
 alfa = 0.01
 chi_critical = scipy.stats.chi2.ppf(1 - alfa, DOF)
 print(f"Q is {Q} and chi critical is {chi_critical}")
@@ -312,20 +319,68 @@ if Q < chi_critical:
 else:
     print("The residual is NOT white ")
 target_train.index = pd.to_datetime(target_train.index)
-model_hat.index = target_train.index
+model_hat1.index = target_train.index
 fig, ax = plt.subplots(figsize=(16,8))
-target_train.plot(label="True data")
-model_hat.plot(label="Fitted data")
+target_train['T(degC)_365_Diff'].plot(ax=ax,label="True data")
+model_hat1.plot(ax=ax,label="Fitted data")
 plt.xlabel("Samples")
 plt.ylabel("Magnitude")
 plt.legend()
-plt.title(" Train versus One Step Prediction")
+plt.title(" Train vs One-Step Prediction - ARIMA(1,0,0)xSARIMA(0,1,0,365)")
+plt.tight_layout()
+plt.show()
+# Judging by the residual analysis, we don't get a white residual hence new order must be considered.
+
+# ARIMA(3,0,0)
+arima_model2 = sm.tsa.arima.ARIMA(target_train,order=(3, 0, 0),trend='n').fit()
+print(arima_model2.summary())
+model_hat2 = arima_model2.predict(start=0, end=len(target_train) - 1)
+e2 = target_train.reset_index()['T(degC)_365_Diff'] - model_hat2.reset_index()['predicted_mean']
+Re2 = autocorrelation(np.array(e2), 100)
+ACF_PACF_Plot(e2,100)
+cal_autocorr(e2,100,"ACF of Residuals with ARIMA(3,0,0)")
+plt.show()
+Q = len(e2) * np.sum(np.square(Re2[100+1:]))
+DOF = 100 - 1 - 0
+alfa = 0.01
+chi_critical = scipy.stats.chi2.ppf(1 - alfa, DOF)
+print(f"Q is {Q} and chi critical is {chi_critical}")
+if Q < chi_critical:
+    print("The residual is white ")
+else:
+    print("The residual is NOT white ")
+model_hat2.index = target_train.index
+fig, ax = plt.subplots(figsize=(16,8))
+target_train['T(degC)_365_Diff'].plot(ax=ax,label="True data")
+model_hat2.plot(ax=ax,label="Fitted data")
+plt.xlabel("Samples")
+plt.ylabel("Magnitude")
+plt.legend()
+plt.title(" Train vs One-Step Prediction - ARIMA(3,0,0)xSARIMA(0,1,0,365)")
 plt.tight_layout()
 plt.show()
 
+# With the residual anlaysis for this model, i can see that the residuals have become white. Hence the final model that i will select is ARIMA(3,0,0)xSARIMA(0,1,0,365). Since the model was built on top of seasonally differenced data, there is a component of SARIMA as well.
+lm_param_estimate(target_train,3,0)
+# The estimated parameter match between the SARIMAX model and custom-developed lm_algorithm_estimation
+residual_variance = np.var(e2)
+forecast_values = arima_model2.forecast(steps=len(target_test))
+e_forecast = target_test.reset_index()['T(degC)_365_Diff'] - forecast_values.reset_index()['predicted_mean']
+forecast_variance = np.var(e_forecast)
+
+Generalization = forecast_variance/residual_variance
+print(Generalization)
+
+# Plotting the distribution of the residual error to assess bias in the model
+e2.hist()
+plt.title("Residual Histogram for ARIMA(3,0,0)xSARIMA(0,1,0,365) Model")
+plt.ylabel("Frequency")
+plt.xlabel("Error Value")
+plt.show()
+
+# Calculating the Model performance through forecast RMSE
+RMSE = np.sqrt(np.square(e_forecast).mean())
+print(RMSE)
+
 #sarima_model = smt.SARIMAX(target_train, order=(3,0,0),seasonal_order=(0,0,1,365), trend='n',freq='D',enforce_invertibility=False).fit(method=)
 
-ry = sm.tsa.stattools.acf(y_train['T(degC)'].values, nlags=100)
-ryy = ry[::-1]
-Ry = np.concatenate((ryy, ry[1:]))
-Cal_GPAC(Ry,30,30)
