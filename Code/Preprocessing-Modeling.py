@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-from toolbox import cal_autocorr, ADF_Cal, kpss_test, Cal_rolling_mean_var, ACF_PACF_Plot, diff, Cal_GPAC,lm_param_estimate,autocorrelation
+from toolbox import cal_autocorr, ADF_Cal, kpss_test, Cal_rolling_mean_var, ACF_PACF_Plot, diff, Cal_GPAC,lm_param_estimate,autocorrelation,drift_forecast_test
 import seaborn as sns
 from sklearn.model_selection import train_test_split
 from statsmodels.tsa.seasonal import STL
@@ -273,40 +273,52 @@ y_pred_naive = np.array([y_pred2]*len(y_test))
 error_naive = y_test.values.ravel() - y_pred_naive.ravel()
 RMSE_naive = np.sqrt(np.square(error_naive).mean())
 
+# Drift method
+y_pred3 = drift_forecast_test(y_train.values.ravel(),len(y_test))
+y_pred_drift = np.array([y_pred3]).reshape(-1,1).ravel()
+error_drift = y_test.values.ravel() - y_pred_drift.ravel()
+RMSE_drift = np.sqrt(np.square(error_drift).mean())
+
+# Simple and Exponential Smoothing
+SES_model = ets.ExponentialSmoothing(y_train,trend=None,damped=False,seasonal=None).fit()
+y_pred_ses = SES_model.forecast(steps=len(y_test))
+error_ses = y_test.values.ravel() - y_pred_ses.values.ravel()
+RMSE_ses = np.sqrt(np.square(error_ses).mean())
+
 # Starting the ARIMA/SARIMA model development
 # Although initially i had considered my data to be stationary and determined that no differencing needs to be applied. Looking at the ACF/PACF plot of the data again, there appears to be high seasonality in the data. This is also reinforced by the Strength of seasonality using STL decomposition previously. A consistent pattern in the ACF/PACF suggests seasonality. As a consequence of this observation, instead of the ARIMA model, I will investigate the SARIMA model. There is no need for non-seasonal differencing since the data is already stationary. However, before proceeding now (based on several research papers referenced: https://article.sciencepublishinggroup.com/pdf/10.11648.j.ijema.20210906.17.pdf, I will perform the seasonal differencing to eliminate this high seasonality. This is because high correlations in the time series can make it difficult to build accurate ARIMA models because the long-term dependencies in the time series are difficult to capture using only a few lags.
 
 # Hence, i need to perform order one seasonal differencing (seasonality index as 365 as decided before) here before proceeding and then do my train-test spit. I will have to trade-off my loss of datapoints before proceeding.
 
-df_target_diff = diff(df_target,'T(degC)',365).copy()
+y_train_diff = diff(y_train,'T(degC)',365).copy()
 # Maintaining original df by removing the new column
-df_target.drop(columns=['T(degC)_365_Diff'],axis=1,inplace=True)
+y_train.drop(columns=['T(degC)_365_Diff'],axis=1,inplace=True)
 # Dropping the previous target column from new dataframe along with the null rows introduced after differencing
-df_target_diff.drop(columns='T(degC)',axis=1,inplace=True)
-df_target_diff = df_target_diff.dropna()
+y_train_diff.drop(columns='T(degC)',axis=1,inplace=True)
+y_train_diff = y_train_diff.dropna()
 # From prior analysis, i already know that this new differenced time series is also stationary, infact it is more stationary as indicated by ADF test. Now i'll proceed with the train-test split and further analysis.
 
-target_train, target_test = train_test_split(df_target_diff, shuffle=False, test_size=0.2, random_state=6313)
-ry = sm.tsa.stattools.acf(target_train['T(degC)_365_Diff'].values, nlags=100)
+# target_train, target_test = train_test_split(df_target_diff, shuffle=False, test_size=0.2, random_state=6313)
+ry = sm.tsa.stattools.acf(y_train_diff['T(degC)_365_Diff'].values, nlags=100)
 ryy = ry[::-1]
 Ry = np.concatenate((ryy, ry[1:]))
 Cal_GPAC(Ry,30,30)
 
 # Keeping the ACF/PACF plot handy
-ACF_PACF_Plot(target_train['T(degC)_365_Diff'].values,100)
+ACF_PACF_Plot(y_train_diff['T(degC)_365_Diff'].values,100)
 # Judging by just the ACF/PACF, i can guess that my AR only process order is 3 since the PACF cuts off after 3 lags. But i'll consider GPAC for time being
 
 # A preliminary order i'm deciding to select is ARMA(1,0); Another possible order i'll select is (3,0)
-lm_param_estimate(target_train,1,0)
+lm_param_estimate(y_train_diff,1,0)
 # Algorithm converges very quickly
-lm_param_estimate(target_train,3,0)
+lm_param_estimate(y_train_diff,3,0)
 # Algorithm converges very quickly
 
 # ARIMA(1,0,0)
-arima_model1 = sm.tsa.arima.ARIMA(target_train,order=(1, 0, 0),trend='n').fit()
+arima_model1 = sm.tsa.arima.ARIMA(y_train_diff,order=(1, 0, 0),trend='n',freq='D').fit()
 print(arima_model1.summary())
-model_hat1 = arima_model1.predict(start=0, end=len(target_train) - 1)
-e1 = target_train.reset_index()['T(degC)_365_Diff'] - model_hat1.reset_index()['predicted_mean']
+model_hat1 = arima_model1.predict(start=0, end=len(y_train_diff) - 1)
+e1 = y_train_diff.reset_index()['T(degC)_365_Diff'] - model_hat1.reset_index()['predicted_mean']
 Re1 = autocorrelation(np.array(e1), 100)
 ACF_PACF_Plot(e1,100)
 Q = len(e1) * np.sum(np.square(Re1[100+1:]))
@@ -318,10 +330,10 @@ if Q < chi_critical:
     print("The residual is white ")
 else:
     print("The residual is NOT white ")
-target_train.index = pd.to_datetime(target_train.index)
-model_hat1.index = target_train.index
+y_train_diff.index = pd.to_datetime(y_train_diff.index)
+model_hat1.index = y_train_diff.index
 fig, ax = plt.subplots(figsize=(16,8))
-target_train['T(degC)_365_Diff'].plot(ax=ax,label="True data")
+y_train_diff['T(degC)_365_Diff'].plot(ax=ax,label="True data")
 model_hat1.plot(ax=ax,label="Fitted data")
 plt.xlabel("Samples")
 plt.ylabel("Magnitude")
@@ -332,16 +344,16 @@ plt.show()
 # Judging by the residual analysis, we don't get a white residual hence new order must be considered.
 
 # ARIMA(3,0,0)
-arima_model2 = sm.tsa.arima.ARIMA(target_train,order=(3, 0, 0),trend='n').fit()
+arima_model2 = sm.tsa.arima.ARIMA(y_train_diff,order=(3, 0, 0),trend='n',freq='D').fit()
 print(arima_model2.summary())
-model_hat2 = arima_model2.predict(start=0, end=len(target_train) - 1)
-e2 = target_train.reset_index()['T(degC)_365_Diff'] - model_hat2.reset_index()['predicted_mean']
-Re2 = autocorrelation(np.array(e2), 100)
+model_hat2 = arima_model2.predict(start=0, end=len(y_train_diff) - 1)
+e2 = y_train_diff.reset_index()['T(degC)_365_Diff'] - model_hat2.reset_index()['predicted_mean']
+Re2 = autocorrelation(np.array(e2),100)
 ACF_PACF_Plot(e2,100)
-cal_autocorr(e2,100,"ACF of Residuals with ARIMA(3,0,0)")
+cal_autocorr(e2,100,"ACF of Residuals with ARIMA(3,0,0)xSARIMA(0,1,0,365)")
 plt.show()
 Q = len(e2) * np.sum(np.square(Re2[100+1:]))
-DOF = 100 - 1 - 0
+DOF = 100 - 3 - 0
 alfa = 0.01
 chi_critical = scipy.stats.chi2.ppf(1 - alfa, DOF)
 print(f"Q is {Q} and chi critical is {chi_critical}")
@@ -349,9 +361,9 @@ if Q < chi_critical:
     print("The residual is white ")
 else:
     print("The residual is NOT white ")
-model_hat2.index = target_train.index
+model_hat2.index = y_train_diff.index
 fig, ax = plt.subplots(figsize=(16,8))
-target_train['T(degC)_365_Diff'].plot(ax=ax,label="True data")
+y_train_diff['T(degC)_365_Diff'].plot(ax=ax,label="True data")
 model_hat2.plot(ax=ax,label="Fitted data")
 plt.xlabel("Samples")
 plt.ylabel("Magnitude")
@@ -361,12 +373,34 @@ plt.tight_layout()
 plt.show()
 
 # With the residual anlaysis for this model, i can see that the residuals have become white. Hence the final model that i will select is ARIMA(3,0,0)xSARIMA(0,1,0,365). Since the model was built on top of seasonally differenced data, there is a component of SARIMA as well.
-lm_param_estimate(target_train,3,0)
+lm_param_estimate(y_train_diff,3,0)
 # The estimated parameter match between the SARIMAX model and custom-developed lm_algorithm_estimation
 residual_variance = np.var(e2)
-forecast_values = arima_model2.forecast(steps=len(target_test))
-e_forecast = target_test.reset_index()['T(degC)_365_Diff'] - forecast_values.reset_index()['predicted_mean']
+forecast_values = arima_model2.forecast(steps=len(y_train_diff))
+# The forecasted values that i've gotten from this model are transformed. I'll have to back-transform these values to compare with my test set.
+y_test_orig = []
+Num_observations = len(y_train_diff)
+s = 365
+for i in range(len(y_test)):
+    if i < s:
+        y_test_orig.append(forecast_values[i] + y_train.iloc[- s + i])
+    else:
+        y_test_orig.append(forecast_values[i] + y_test_orig[i - s])
+
+y_test_orig = np.array(y_test_orig).ravel()
+e_forecast = y_test.reset_index()['T(degC)'].ravel() - y_test_orig
 forecast_variance = np.var(e_forecast)
+y_testdf = pd.DataFrame(y_test_orig.reshape(-1,1),columns=["Forecast"],index=y_test.index)
+
+fig, ax = plt.subplots(figsize=(16,8))
+y_test['T(degC)'].plot(ax=ax,label='Test Data')
+y_testdf.plot(ax=ax,label="Forecast")
+plt.legend(loc='lower right')
+plt.title(f'ARIMA(3,0,0)xSARIMA(0,1,0,365) Model Results')
+plt.xlabel('Time')
+plt.ylabel('Temperature (degC)')
+plt.grid()
+plt.show()
 
 Generalization = forecast_variance/residual_variance
 print(Generalization)
